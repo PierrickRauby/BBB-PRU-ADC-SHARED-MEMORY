@@ -89,7 +89,6 @@ int main(void)
     printf("Waiting for PRU answer through character device %s\n", DEVICE_NAME);
 
   /*delay(4); // wait */
-  printf("done\n");
 
   /* Poll until we receive a message from the PRU and then print it */
   result = read(pollfds[0].fd, readBuf, sizeof(int*));
@@ -101,7 +100,7 @@ int main(void)
   close(pollfds[0].fd);
 
   if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1){
-    printf("Failed to open memory!\n");
+    printf("Failed to open memory, you need to be root! \n");
     return -1;
   }
   fflush(stdout);

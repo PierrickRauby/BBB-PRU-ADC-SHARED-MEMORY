@@ -137,7 +137,7 @@ static void ADCConfigure(void)
   HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) |= 0x01;
 }
 
-int pru_function()
+void pru_function()
 {
   /* Allow OCP master port access by the PRU so the PRU can read external 
      memories */
