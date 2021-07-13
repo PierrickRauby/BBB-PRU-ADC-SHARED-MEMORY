@@ -16,3 +16,10 @@
 /home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: /usr/lib/ti/pru-software-support-package/include/pru_virtqueue.h
 /home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: /usr/lib/ti/pru-software-support-package/include/pru_virtio_ring.h
 /home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: /usr/lib/ti/pru-software-support-package/include/am335x/pru_ctrl.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/hw_types.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/tsc_adc.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/hw_tsc_adc_ss.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/soc_AM335x.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/hw_control_AM335x.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/hw_cm_per.h
+/home/debian/BBB-PRU-SHARED-MEM-ADC/pru_codes/tmp/main.o: ./include/hw_cm_wkup.h

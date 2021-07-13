@@ -17,8 +17,18 @@
 #include <pru_intc.h>
 #include <rsc_types.h>
 #include <pru_rpmsg.h>
-//#include "hw_types.h"
 #include <pru_ctrl.h>
+#include "hw_types.h"
+#include "tsc_adc.h"
+#include "soc_AM335x.h"
+#include "hw_control_AM335x.h"
+#include "hw_cm_per.h"
+#include "hw_cm_wkup.h"
+
+
+int pru_function(uint8_t i2cDevice);
+uint32_t get_sample();
+static void ADCConfigure(void);
 
 volatile register unsigned int __R30;
 volatile register unsigned int __R31;
@@ -42,61 +52,100 @@ volatile register unsigned int __R31;
  * Found at linux-x.y.z/include/uapi/linux/virtio_config.h
  */
 #define VIRTIO_CONFIG_S_DRIVER_OK    4
-// Work
-/*#define PRU_SRAM  0x00000000*/
-// Test
-#define PRU_DMEM0 __far __attribute__((cregister("PRU_DMEM_0_1",  near)))
-#define PRU_DMEM1 __far __attribute__((cregister("PRU_DMEM_1_0",  near)))
 
-/*PRU_DMEM0 volatile uint32_t shared_1[100];*/
-PRU_DMEM0 volatile uint32_t shared_1;
-PRU_DMEM1 volatile uint32_t shared_2;
-#define test7(x)   (*(volatile uint32_t *)(x))
+
+#define PRU_DMEM0 __far __attribute__((cregister("PRU_DMEM_0_1",  near)))
+/*#define PRU_DMEM1 __far __attribute__((cregister("PRU_DMEM_1_0",  near)))*/
+
+PRU_DMEM0 volatile uint32_t pru_mem_array[1024];
+/*PRU_DMEM1 volatile uint32_t shared_2;*/
 
 char payload[RPMSG_BUF_SIZE];
 struct pru_rpmsg_transport transport;
 uint16_t src, dst, len;
 volatile uint8_t *status;
-unsigned long sample;
+/*unsigned long sample;*/
 int i;
-/* PRU_SHAREDMEM is defined in the linker file*/
-/* The 2 next lines come from the PRU cookbook */
-int write_shared_mem(message){
-  // TEST 1: works
-  /*#define DEBUG *(volatile unsigned int *) 0x00000000*/
-  /*DEBUG = 0xDEADBEEF;*/
-  // TEST 2: Works too ! from PRU cookbook 
-  //https://github.com/jadonk/cloud9-examples/blob/master/
-  //        BeagleBone/AI/pru/shared.pru1_1.c
-  // read next line from linux with sudo devmem2 0x4B202000
 
-  /*shared_1 = 0xdffd;*/ // commente pour faire le test 4
-  // read next line from linux with sudo devmem2 0x4B200000
-  /*shared_2 =0xdead;*/
-
-  //TEST 3: Test d'ecrire un tableau  -> ne fonctionne pas 
-  // J"ai l'erreur "  error #143: expression must have pointer-to-object type"
-  /*shared_1[0]=0xdeaf;*/
-  /*shared_1[1]=0xbeab;*/
-  // TEST4:Test a partir du lien ci-dessous: -> Ne fonctionne pas 
-  //https://e2e.ti.com/support/processors-group/processors/f/processors-forum/
-  //485199/am335x-pru-and-c-c-compiler-memory-access
-  /*array_name[0]=0xdfed;*/
-  // TEST 5:  redefinition de l'array -> Works
-  /*for(i=0;i<100;++i){*/
-  /*shared_1[i]=i;*/
-  /*};*/
-  // TEST 6: ecriture de message dans shared 2
-  /*shared_1 = 0xdaff;*/
-  /*shared_2 = 0xdefd;*/
-  // Test 7: ecriture d'un array dans l'adresse envoyee via RPMSG
-  /*test7(message)=0xbebe;*/
-  (*(volatile uint32_t *)(message))=0xaaaa;
-  return 1;
+void main(void) {
+  ADCConfigure();
+  pru_function(1);
 }
 
+uint32_t get_sample(){
+  uint32_t sample;
+  unsigned int i, count, data ;
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_STEPENABLE) = 0xfe;
+  /* Wait for interrupt */
+  while (!(HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_IRQSTATUS)&0x02));
+  /* Clear interrupt */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_IRQSTATUS) = 0x02;
+  sample = 0xFFFFFFFF;
+  count = HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_FIFOCOUNT(0));
+  //sample = count;
+  for (i = 0; i < count; i++) {
+    data = HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_FIFODATA(0));
+    if ((data & 0x000F0000) == 0) {
+      /* if channel == 0 */
+      sample = data & 0xFFF;
+    }
+  }
+  return sample;
+}
 
-uint8_t pru_function(uint8_t i2cDevice){
+static void ADCConfigure(void)
+{
+  unsigned int i, count ;
+  /* Enable ADC module clock */
+  HWREG(SOC_CM_WKUP_REGS + CM_WKUP_ADC_TSC_CLKCTRL) = 0x02;
+  /* Disable ADC module for configuration */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) &= ~0x01;
+  /* fs = 24MHz / ((CLKDIV+1)*2*Channels*(OpenDly+Average*(14+SampleDly)))
+   *    = 53.57kHz
+   * CLKDIV = 0
+   * Channels = 1
+   * Average = 16
+   * OpenDly = 0
+   * SampleDly = 0
+   */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_ADC_CLKDIV) = 0;
+
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_ADCRANGE) = 0xFFF << 16;
+
+  /* Disable all steps for now */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_STEPENABLE) &= 0xFF;
+
+  /* Unlock step configuration */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) |= 0x04;
+
+  /* Step 1 config: SW mode, one shot mode, fifo 0, channel 0 */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_STEPCONFIG(0)) = 0x00000000;
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_STEPDELAY(0)) = 0xFF000000;
+
+  /* Enable channel ID tag */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) |= 0x02;
+
+  /* Clear end-of-sequence interrupt */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_IRQSTATUS) = 0x02;
+
+  /* Enable end-of-sequence interrupt */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_IRQENABLE_SET) = 0x02;
+
+  /* Lock step configuration */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) &= ~0x04;
+
+  /* Empty FIFO 0 */
+  count = HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_FIFOCOUNT(0));
+  for (i = 0; i < count; i++) {
+     HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_FIFODATA(0));
+  }
+
+  /* Enable ADC module */
+  HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) |= 0x01;
+}
+
+int pru_function(uint8_t i2cDevice)
+{
   /* Allow OCP master port access by the PRU so the PRU can read external 
      memories */
   CT_CFG.SYSCFG_bit.STANDBY_INIT = 0;
@@ -118,31 +167,32 @@ uint8_t pru_function(uint8_t i2cDevice){
     if (__R31 & HOST_INT) {
       /* Clear the event status */
       CT_INTC.SICR_bit.STS_CLR_IDX = FROM_ARM_HOST;
-      /*while (pru_rpmsg_receive(&transport, &src, &dst, payload, &len) */
-      /*== PRU_RPMSG_SUCCESS) {*/
       while (pru_rpmsg_receive(&transport, &src, &dst, payload,
             (uint16_t*)sizeof(int*)) == PRU_RPMSG_SUCCESS) {
-        /*long message=0b00000000000001;*/
-        int message=atoi(payload); // writting the payload to the PRU DATA Ram
+        for(i=0;i<1024;i++){
+          pru_mem_array[i]=0;
+          pru_mem_array[i]=get_sample();
+          /*pru_mem_array[i]=i;*/
+        }
+        /*for(i=0;i<10;i++){*/
+          /*pru_mem_array[i]=0;*/
+        /*}*/
+        /*int message=atoi(payload); // writting the payload to the PRU DATA Ram*/
         /* Receive the data from the sensor register specified above*/
         /*int count;*/
         /*count=write_shared_mem(message);*/
-        write_shared_mem(message);
+        /*write_shared_mem();*/
         /* format the data before sending to user space */ 
         /*sample=(long)count;*/
         /*memcpy(payload, "\0\0\0\0\0\0\0\0\0\0\0", 11);*/
         /*ltoa(count, payload);*/
         /*len = strlen(payload) + 1;*/
         /* send data to user space with rpmsg */
-        pru_rpmsg_send(&transport, dst, src, payload,(uint16_t)sizeof(int*));
-        /*pru_rpmsg_send(&transport, dst, src, payload, 4);*/
+        pru_rpmsg_send(&transport, dst, src,"writen" ,6); /*pru_rpmsg_send(&transport, dst, src, payload, 4);*/
       }
     }
     }
-  }
-  void main(void) {
-    pru_function(1);
-  }
+}
 
   // Turns off triggers
 #pragma DATA_SECTION(init_pins, ".init_pins")
@@ -150,4 +200,5 @@ uint8_t pru_function(uint8_t i2cDevice){
   const char init_pins[] =  
     "/sys/class/leds/beaglebone:green:usr1/trigger\0none\0" \
     "/sys/class/leds/beaglebone:green:usr2/trigger\0none\0" \
+    "/sys/bus/platform/drivers/ti_am3359-tscadc/unbind\00044e0d000.tscadc\0" \
     "\0\0";

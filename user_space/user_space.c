@@ -37,31 +37,38 @@
 
 
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/poll.h>
+#include <stdint.h>
+#include <errno.h>
+#include <signal.h>
+#include <ctype.h>
+#include <termios.h>
+#include <sys/types.h>
+#include <sys/mman.h>
 
+#define MAP_SIZE 4096UL
+#define MAP_MASK (MAP_SIZE - 1)
 #define MAX_BUFFER_SIZE        512
+#define PRU_DATA_ADDRESS 0x4A300000
 char readBuf[MAX_BUFFER_SIZE];
-
 #define DEVICE_NAME        "/dev/rpmsg_pru30"
+
+static void delay(int number_of_dixieme_de_seconde);
 
 int main(void)
 {
   struct pollfd pollfds[1];
-  int i;
   int result = 0;
-  int volatile *ptr; // the start of the result array
-  ptr = (int*) malloc(100 * sizeof(int));
-  ptr[0]=0;
-  if (ptr == NULL) {
-    printf("Memory not allocated.\n");
-    exit(0);
-  }
-
-  printf("Adress of results is:%d \n",ptr);
+  int fd, i, j;
+  void *map_base, *virt_addr;
+  unsigned long read_result, writeval;
+  unsigned int numberOutputSamples = 1;
+  off_t target = PRU_DATA_ADDRESS;
 
   /* Open the rpmsg_pru character device file */
   pollfds[0].fd = open(DEVICE_NAME, O_RDWR);
@@ -80,21 +87,66 @@ int main(void)
   /* The RPMsg channel exists and the character device is opened */
   printf("Opened %s, sending address to read to PRU\n", DEVICE_NAME);
   /* In this example only the adress to read with the PRU is sent*/
-  // TODO: retirer ptrptr puisque je peux directement 
-  result = write(pollfds[0].fd,&ptr , sizeof(int*));
-  /*result = write(pollfds[0].fd,&ptr , 16);*/
+  result = write(pollfds[0].fd, "hello PRU!", 10);
   if (result > 0)
     printf("Waiting for PRU answer through character device %s\n", DEVICE_NAME);
 
+  /*close(pollfds[0].fd);*/
+  delay(4);
+  printf("done\n");
+
   /* Poll until we receive a message from the PRU and then print it */
-  /*result = read(pollfds[0].fd, readBuf, sizeof(int*));*/
   result = read(pollfds[0].fd, readBuf, sizeof(int*));
   if (result > 0){
-    printf("Answer received from PRU:\n\n %d\n\n", readBuf);
+    printf("Sample is ready to read in PRU memory, \n Reading Data points\n",
+        readBuf);
   }
-
   /* Close the rpmsg_pru character device file */
   close(pollfds[0].fd);
 
+  if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1){
+    printf("Failed to open memory!\n");
+    return -1;
+  }
+  fflush(stdout);
+
+  map_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, target & ~MAP_MASK);
+  if(map_base == (void *) -1) {
+    printf("Failed to map base address\n");
+    return -1;
+  }
+  fflush(stdout);
+
+  for(j=0; j<1000; j++){
+    for(i=0; i<numberOutputSamples; i++){
+      virt_addr = map_base + (target & MAP_MASK);
+      read_result = *((unsigned long *) virt_addr);
+      //printf("Value at address 0x%X is: 0x%X\n", target, read_result);
+      displayDistance((unsigned int)read_result);
+      usleep(500000);
+    }
+    fflush(stdout);
+  }
+
+  if(munmap(map_base, MAP_SIZE) == -1) {
+    printf("Failed to unmap memory");
+    return -1;
+  }
+  close(fd);
   return 0;
+
+
+
+  return 0;
+}
+
+
+void delay(int number_of_dixieme_de_seconde) 
+{ 
+  // Converting time into milli_seconds
+  int milli_seconds = 100000 * number_of_dixieme_de_seconde;
+  // Storing start time
+  clock_t start_time = clock();
+  // looping till required time is not achieved
+  while (clock() < start_time + milli_seconds);
 }
