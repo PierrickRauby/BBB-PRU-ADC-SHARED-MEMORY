@@ -51,10 +51,13 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#define MAP_SIZE 4096UL
+/*#define MAP_SIZE 4096UL*/
+/*#define MAP_MASK (MAP_SIZE - 1)*/
+
+#define MAP_SIZE 1024
 #define MAP_MASK (MAP_SIZE - 1)
 #define MAX_BUFFER_SIZE        512
-#define PRU_DATA_ADDRESS 0x4A300000
+#define PRU_DATA_ADDRESS 0x4A302000
 char readBuf[MAX_BUFFER_SIZE];
 #define DEVICE_NAME        "/dev/rpmsg_pru30"
 
@@ -67,7 +70,7 @@ int main(void)
   int fd, i, j;
   void *map_base, *virt_addr;
   unsigned long read_result, writeval;
-  unsigned int numberOutputSamples = 1;
+  unsigned int numberOutputSamples = 1024;
   off_t target = PRU_DATA_ADDRESS;
 
   /* Open the rpmsg_pru character device file */
@@ -117,14 +120,14 @@ int main(void)
   }
   fflush(stdout);
 
-  for(j=0; j<1000; j++){
-    for(i=0; i<numberOutputSamples; i++){
+  for(j=0; j<numberOutputSamples; j++){
+    /*for(i=0; i<numberOutputSamples; i++){*/
       virt_addr = map_base + (target & MAP_MASK);
-      read_result = *((unsigned long *) virt_addr);
-      //printf("Value at address 0x%X is: 0x%X\n", target, read_result);
-      displayDistance((unsigned int)read_result);
-      usleep(500000);
-    }
+      target=target+0x4; // 
+      /*read_result = *((unsigned long *) virt_addr);*/
+      read_result = *((int*) virt_addr);
+      printf("Value at address 0x%X is: %d\n", target, read_result);
+    /*}*/
     fflush(stdout);
   }
 

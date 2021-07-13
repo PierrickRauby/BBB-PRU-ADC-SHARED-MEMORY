@@ -56,10 +56,8 @@ volatile register unsigned int __R31;
 
 #define PRU_DMEM0 __far __attribute__((cregister("PRU_DMEM_0_1",  near)))
 /*#define PRU_DMEM1 __far __attribute__((cregister("PRU_DMEM_1_0",  near)))*/
-
-PRU_DMEM0 volatile uint32_t pru_mem_array[1024];
-/*PRU_DMEM1 volatile uint32_t shared_2;*/
-
+#define NUMBER_SAMPLES 1024
+PRU_DMEM0 volatile uint32_t pru_mem_array[NUMBER_SAMPLES];
 char payload[RPMSG_BUF_SIZE];
 struct pru_rpmsg_transport transport;
 uint16_t src, dst, len;
@@ -169,25 +167,10 @@ int pru_function(uint8_t i2cDevice)
       CT_INTC.SICR_bit.STS_CLR_IDX = FROM_ARM_HOST;
       while (pru_rpmsg_receive(&transport, &src, &dst, payload,
             (uint16_t*)sizeof(int*)) == PRU_RPMSG_SUCCESS) {
-        for(i=0;i<1024;i++){
-          pru_mem_array[i]=0;
-          pru_mem_array[i]=get_sample();
-          /*pru_mem_array[i]=i;*/
+        for(i=0;i<NUMBER_SAMPLES;i++){
+          pru_mem_array[i]=0; // clear the memory 
+          pru_mem_array[i]=get_sample(); // write the sample
         }
-        /*for(i=0;i<10;i++){*/
-          /*pru_mem_array[i]=0;*/
-        /*}*/
-        /*int message=atoi(payload); // writting the payload to the PRU DATA Ram*/
-        /* Receive the data from the sensor register specified above*/
-        /*int count;*/
-        /*count=write_shared_mem(message);*/
-        /*write_shared_mem();*/
-        /* format the data before sending to user space */ 
-        /*sample=(long)count;*/
-        /*memcpy(payload, "\0\0\0\0\0\0\0\0\0\0\0", 11);*/
-        /*ltoa(count, payload);*/
-        /*len = strlen(payload) + 1;*/
-        /* send data to user space with rpmsg */
         pru_rpmsg_send(&transport, dst, src,"writen" ,6); /*pru_rpmsg_send(&transport, dst, src, payload, 4);*/
       }
     }
