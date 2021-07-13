@@ -1,5 +1,5 @@
 /*
- * simple_ping_pong_user_space.pru1_1.c
+ * user_space.c
  * Modified by Pierrick Rauby < PierrickRauby - pierrick.rauby@gmail.com >
  * Based on the examples distributed by TI
  * redistribution and use in source and binary forms, with or without
@@ -30,11 +30,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
- * To compile use: make 
- * To deploy use: sh ./run.sh
+ * To compile and run use: make 
  */
-
-
 
 #include <stdio.h>
 #include <time.h>
@@ -50,9 +47,6 @@
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/mman.h>
-
-/*#define MAP_SIZE 4096UL*/
-/*#define MAP_MASK (MAP_SIZE - 1)*/
 
 #define MAP_SIZE 1024
 #define MAP_MASK (MAP_SIZE - 1)
@@ -94,8 +88,7 @@ int main(void)
   if (result > 0)
     printf("Waiting for PRU answer through character device %s\n", DEVICE_NAME);
 
-  /*close(pollfds[0].fd);*/
-  delay(4);
+  /*delay(4); // wait */
   printf("done\n");
 
   /* Poll until we receive a message from the PRU and then print it */
@@ -121,13 +114,10 @@ int main(void)
   fflush(stdout);
 
   for(j=0; j<numberOutputSamples; j++){
-    /*for(i=0; i<numberOutputSamples; i++){*/
       virt_addr = map_base + (target & MAP_MASK);
-      target=target+0x4; // 
-      /*read_result = *((unsigned long *) virt_addr);*/
+      target=target+0x4; // get to next sample (int is size 4)
       read_result = *((int*) virt_addr);
       printf("Value at address 0x%X is: %d\n", target, read_result);
-    /*}*/
     fflush(stdout);
   }
 

@@ -1,18 +1,15 @@
 /*
  * main.c
- * Modified by Pierrick Rauby < PierrickRauby - pierrick.rauby@gmail.com >
- * Based on the cloud9 examples:
- * https://github.com/jadonk/cloud9-examples/blob/master/BeagleBone/
- *       AI/pru/blinkInternalLED.pru1_1.c
+ * Created by Pierrick Rauby < PierrickRauby - pierrick.rauby@gmail.com >
+ * based on some Cloud9 examples
  * To compile use: make 
  */
 
 #include <stdint.h>
 #include <pru_cfg.h>
 #include "resource_table_1.h"
-/*#include "prugpio.h"*/
 #include <stdio.h>
-#include <stdlib.h>            // atoi
+#include <stdlib.h>
 #include <string.h>
 #include <pru_intc.h>
 #include <rsc_types.h>
@@ -26,7 +23,7 @@
 #include "hw_cm_wkup.h"
 
 
-int pru_function(uint8_t i2cDevice);
+void pru_function();
 uint32_t get_sample();
 static void ADCConfigure(void);
 
@@ -54,20 +51,18 @@ volatile register unsigned int __R31;
 #define VIRTIO_CONFIG_S_DRIVER_OK    4
 
 
-#define PRU_DMEM0 __far __attribute__((cregister("PRU_DMEM_0_1",  near)))
-/*#define PRU_DMEM1 __far __attribute__((cregister("PRU_DMEM_1_0",  near)))*/
 #define NUMBER_SAMPLES 1024
+#define PRU_DMEM0 __far __attribute__((cregister("PRU_DMEM_0_1",  near)))
 PRU_DMEM0 volatile uint32_t pru_mem_array[NUMBER_SAMPLES];
 char payload[RPMSG_BUF_SIZE];
 struct pru_rpmsg_transport transport;
 uint16_t src, dst, len;
 volatile uint8_t *status;
-/*unsigned long sample;*/
 int i;
 
 void main(void) {
   ADCConfigure();
-  pru_function(1);
+  pru_function();
 }
 
 uint32_t get_sample(){
@@ -142,7 +137,7 @@ static void ADCConfigure(void)
   HWREG(SOC_ADC_TSC_0_REGS + TSC_ADC_SS_CTRL) |= 0x01;
 }
 
-int pru_function(uint8_t i2cDevice)
+int pru_function()
 {
   /* Allow OCP master port access by the PRU so the PRU can read external 
      memories */
@@ -161,17 +156,17 @@ int pru_function(uint8_t i2cDevice)
         CHAN_PORT) != PRU_RPMSG_SUCCESS);
   while (1) {
     /* Check bit 30 of register R31 to see if the ARM has kicked us */
-
     if (__R31 & HOST_INT) {
       /* Clear the event status */
       CT_INTC.SICR_bit.STS_CLR_IDX = FROM_ARM_HOST;
       while (pru_rpmsg_receive(&transport, &src, &dst, payload,
             (uint16_t*)sizeof(int*)) == PRU_RPMSG_SUCCESS) {
-        for(i=0;i<NUMBER_SAMPLES;i++){
+        for(i=0;i<NUMBER_SAMPLES;i++){ // Get the data points and save them to memory
           pru_mem_array[i]=0; // clear the memory 
           pru_mem_array[i]=get_sample(); // write the sample
-        }
-        pru_rpmsg_send(&transport, dst, src,"writen" ,6); /*pru_rpmsg_send(&transport, dst, src, payload, 4);*/
+        } 
+        // Tell the arm that data is ready
+        pru_rpmsg_send(&transport, dst, src,"writen" ,6); 
       }
     }
     }
