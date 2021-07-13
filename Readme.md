@@ -15,6 +15,10 @@ The different steps to use the project on a Beaglebone Black are:
 
 ## Structure of the Project 
 
+The folder contains 
+
+### 
+
 
 
 ## TODOs:
@@ -23,8 +27,8 @@ This is a work in progress so please bear with me if things are not perfect. I w
 The current toddos for this project are:
 - [x] validate simple rpmsg example between the arm and the PRUs for communication only (no ADC in this example
 - [x] send notification back to arm 
-- [ ] Create a simple working example to send ADC sample back to the ARM
-- [ ] write ADC samples to PRU Shared memory from PRU
+- [x] Create a simple working example to send ADC sample back to the ARM
+- [x] write ADC samples to PRU Shared memory from PRU
 - [ ] update comments between Beaglbone AI and Beaglebone Black in the codes
 - [ ] Complete _How to use the codes_ section of the main readme
 - [ ] Complete _Structure of the project_ section of the main readme
