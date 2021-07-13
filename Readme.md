@@ -16,11 +16,11 @@ The ADC is sampling its channel 1, this is  __P9.39__  on the Beaglebone Black, 
 
 The repo contains 2 directories, `pru_codes` and `user_space`.
 
-### [pru_codes]()
+### [pru_codes](pru_codes/)
 Contains the codes for the PRU, makefile and some includes. This codes can be compile, placed and run using `make` from inside the directory. 
 The main.c will configure the ADC and wait for a message to arrive on the rpmsg channel from the ARM. Once the PRU receives the rmpsg message, it will start the acquisition of 1024 Data points and place them in it is DATA Memory. After the acquisition the PRU will respond to the ARM to notify that the ARM can read the DATA from the PRU memory.
 
-### [user_space]()
+### [user_space](user_space/)
 Contains the ARM side codes and the make file. The code can requires root privilegies and can be compiled and run using `make`.
 The code will initiate the rpmsg transport structure and send a message to the PRU, then it will wait for the PRU to answer and read the DATA from the PRU memory. The sample points are printout by the code but the code can be easily modified.
 
@@ -33,11 +33,6 @@ The current toddos for this project are:
 - [x] send notification back to arm 
 - [x] Create a simple working example to send ADC sample back to the ARM
 - [x] write ADC samples to PRU Shared memory from PRU
-- [ ] update comments between Beaglbone AI and Beaglebone Black in the codes
+- [x] update comments between Beaglbone AI and Beaglebone Black in the codes
 - [x] Complete _How to use the codes_ section of the main readme
 - [x] Complete _Structure of the project_ section of the main readme
-
-## Misc Notes:
-remoteproc in makefile does for PRU1 point to remoteproc2 which is for the M3 cortex, this is potentially an issue with the copy paste made from the Beaglebone repository so there maybe an issue with that ! the PRU dire should point to remoteproc0 for PRU0 and to remoteproc1 for pru1. 
-
-.
